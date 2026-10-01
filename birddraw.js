@@ -1980,10 +1980,6 @@ function bird_leg(hip,foot,arg,perch_type){
     let heel = [lerp(hip[0],foot[0],0.5)+H*0.22, lerp(hip[1],foot[1],0.45)];
     path = resample([hip,heel,foot],2);
     knee = heel;
-  }else if (perch_type == 2){
-    let mid = [lerp(hip[0],foot[0],0.5), lerp(hip[1],foot[1],0.5)+H*0.12];
-    path = resample(bezier3(hip,mid,mid,foot,12),2);
-    knee = [mid[0],-Infinity];
   }else{
     let mid = [lerp(hip[0],foot[0],0.4)+H*0.12, lerp(hip[1],foot[1],0.4)];
     path = resample(bezier3(hip,mid,mid,foot,12),2);
@@ -2009,11 +2005,6 @@ function bird_leg(hip,foot,arg,perch_type){
     toes.push(bird_toe(fx,fy,PI+0.15,-curl,tl,tw*0.85));
     toes.push(bird_toe(fx+1,fy+1,0.2,curl*0.8,tl*0.65,tw*0.85));
     toes.push(bird_toe(fx-1,fy,PI-0.35,-curl*0.8,tl*0.8,tw*0.8));
-  }else if (perch_type == 2){
-    // on a trunk two toes reach up the bark and one braces downward
-    toes.push(bird_toe(fx,fy,-PI/2-0.25,-0.5,tl,tw*0.85));
-    toes.push(bird_toe(fx,fy+1,-PI/2+0.1,-0.4,tl*0.8,tw*0.8));
-    toes.push(bird_toe(fx+1,fy,PI/2+0.15,0.4,tl*0.75,tw*0.85));
   }else{
     toes.push(bird_toe(fx,fy,PI-0.05,-0.15,tl*1.2,tw*0.85));
     toes.push(bird_toe(fx+1,fy,0.05,0.1,tl*0.6,tw*0.85));
@@ -2144,39 +2135,6 @@ function bird_water(xa,xb,yw,arg){
   }
   let occ = [[xa-1e4,yw],[xb+1e4,yw],[xb+1e4,yw+1e4],[xa-1e4,yw+1e4]];
   return {lines,occ:[occ]};
-}
-
-// a vertical tree trunk whose right edge, xr(y), faces the bird
-function bird_trunk(xr,ya,yb,tw){
-  let n = ~~((yb-ya)/3);
-  let right = [];
-  let left = [];
-  for (let i = 0; i < n; i++){
-    let y = lerp(ya,yb,i/(n-1));
-    right.push([xr(y),y]);
-    left.push([xr(y)-tw*(1+(noise(y*0.01,93)-0.5)*0.2),y]);
-  }
-  let outline = right.concat(left.slice().reverse());
-  let lines = [right,left];
-  let frac = (x,y)=>{
-    let i = Math.max(0,Math.min(n-1,Math.round((y-ya)/(yb-ya)*(n-1))));
-    return (right[i][0]-x)/(right[i][0]-left[i][0]);
-  };
-  // bark: long broken furrows running up the trunk
-  for (let sv = 0.06; sv < 0.97; sv += 0.07){
-    let b = [];
-    for (let i = 0; i < n; i++){
-      b.push(lerp2d(...right[i],...left[i],sv+(noise(i*0.05,sv*10,94)-0.5)*0.12));
-    }
-    b = resample(b,2);
-    lines.push(...binclip(b,(x,y)=>(noise(x*0.1,y*0.03,95) > 0.4)).true);
-  }
-  // shade on the side that turns away from the light, next to the bird
-  let shade = fill_shape(outline,3.4);
-  shade = clip_multi(shade.map(x=>resample(x,1)),(x,y)=>(frac(x,y) < 0.12+noise(x*0.05,y*0.05,96)*0.12),binclip).true;
-  lines.push(...shade);
-  lines = clip_multi(lines,outline.concat([outline[0]])).true.concat([right,left]);
-  return {lines,occ:[outline]};
 }
 
 
@@ -2315,7 +2273,7 @@ function bird(arg){
   let bird_layers = [scap,flank,wing,body,tail];
   let xs = c0.concat(c1).map(p=>p[0]);
 
-  if (arg.pose == 3){
+  if (arg.pose == 2){
     // swimming: no legs; the water hides the lower body
     let ys = c0.concat(c1).map(p=>p[1]);
     let yw = Math.max(...ys)-(Math.max(...ys)-Math.min(...ys))*arg.water_depth;
@@ -2327,21 +2285,6 @@ function bird(arg){
   let kl = arg.leg_pos;
   let hip0 = lerp2d(...c0[kl],...c1[kl],0.65);
   let hip1 = lerp2d(...c0[kl+2],...c1[kl+2],0.65);
-
-  if (arg.pose == 4){
-    // clinging: the belly faces a vertical trunk, the toes grip the bark, the tail is braced on it
-    let tpts = tail.occ.flat();
-    let tip = tpts.reduce((a,p)=>(p[1] > a[1] ? p : a),tpts[0]);
-    let x0 = Math.min(Math.min(...c1.map(p=>p[0]))-H*0.07,tip[0]+1);
-    let xr = y=>x0+(noise(y*0.01,91)-0.5)*H*0.12;
-    let ys = c0.concat(c1,tpts).map(p=>p[1]);
-    let trunk = bird_trunk(xr,Math.min(...ys)-L*0.35,Math.max(...ys)+L*0.25,L*arg.trunk_width);
-    let fy0 = hip0[1]+H*0.15;
-    let fy1 = hip1[1]+H*0.15;
-    let leg0 = bird_leg(hip0,[xr(fy0),fy0],arg,2);
-    let leg1 = bird_leg(hip1,[xr(fy1)+1,fy1],arg,2);
-    return compose(front.concat(bird_layers,[leg0,leg1,trunk]));
-  }
 
   let bottom = Math.max(...c1.map(p=>p[1]));
   let py = bottom + arg.leg_length*H;
@@ -2487,7 +2430,6 @@ function default_params(){
     beak_open:0,
     pose:0,
     water_depth:0.38,
-    trunk_width:0.7,
     eye_type:0,
     eye_size:0.2,
     has_eyering:0,
@@ -2645,14 +2587,13 @@ function generate_params(){
   arg.cheek = rndtri(0,0.06,0.12);
   arg.crown_pos = rndtri(-0.25,0,0.2);
 
-  // pose: 0 standing, 1 singing, 2 foraging, 3 swimming, 4 clinging to a trunk.
-  // waders only stand or forage; birds with a chisel beak mostly cling
+  // pose: 0 standing, 1 singing, 2 swimming. waders only stand
   if (arg.leg_type == 1){
-    arg.pose = choice([0,2],[2,1]);
+    arg.pose = 0;
   }else{
     // singing is for short-billed songbirds
     let sing = arg.beak_length < 1.3 ? 4 : 0;
-    arg.pose = choice([0,1,2,3,4],[5,sing,2,2,BEAKS[arg.beak_type].name == 'chiseling' ? 8 : 1]);
+    arg.pose = choice([0,1,2],[5,sing,2]);
   }
   if (arg.pose == 1){
     arg.head_angle = rndtri(-0.75,-0.55,-0.35);
@@ -2661,27 +2602,12 @@ function generate_params(){
     arg.cheek += 0.08;
     arg.tail_angle = rndtri(0.1,0.3,0.5);
   }else if (arg.pose == 2){
-    arg.perch_type = 1;
-    arg.neck_angle = rndtri(1.5,1.8,2.1);
-    arg.neck_length = Math.max(arg.neck_length,H*rndtri(0.3,0.5,0.8));
-    arg.head_angle = rndtri(0.8,1.05,1.3);
-    arg.tilt = rndtri(-0.2,-0.05,0.1);
-    arg.tail_angle = rndtri(-0.4,-0.2,0);
-  }else if (arg.pose == 3){
     arg.tilt = rndtri(-0.1,0,0.1);
     arg.tail_angle = rndtri(-0.5,-0.3,-0.1);
     arg.head_angle = rndtri(-0.1,0.05,0.2);
     arg.neck_angle = rndtri(0,0.2,0.4);
     arg.neck_length = H*rndtri(0.1,0.4,1);
     arg.water_depth = rndtri(0.3,0.38,0.45);
-  }else if (arg.pose == 4){
-    arg.tilt = rndtri(1.05,1.2,1.35);
-    arg.tail_angle = rndtri(0.35,0.5,0.65);
-    arg.head_angle = rndtri(-0.2,-0.05,0.1);
-    arg.neck_angle = PI/2-arg.tilt+rndtri(-0.1,0.1,0.3);
-    arg.neck_length = H*rndtri(0,0.1,0.3);
-    arg.leg_length = rndtri(0.2,0.3,0.45);
-    arg.trunk_width = rndtri(0.5,0.7,0.9);
   }
 
   return arg;
