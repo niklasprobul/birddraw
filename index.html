@@ -58,6 +58,14 @@
     color: var(--sepia);
   }
   figcaption .name { font-style: italic; color: var(--ink); font-size: 1.15em; }
+  .saves {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 14px;
+    font-size: 13px;
+  }
   nav {
     margin-top: 22px;
     display: flex;
@@ -66,7 +74,25 @@
     gap: 8px 24px;
     font-size: 15px;
   }
-  nav a, nav button {
+  .find {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  .find[hidden] { display: none; }
+  .find input {
+    font: inherit;
+    font-style: italic;
+    width: min(18em, 70vw);
+    color: var(--ink);
+    background: var(--plate);
+    border: 1px solid var(--rule);
+    padding: 4px 8px;
+  }
+  .find input:focus { outline: none; border-color: var(--sepia); }
+  nav a, nav button, .saves button, .find button {
     font: inherit;
     color: var(--sepia);
     background: none;
@@ -76,8 +102,8 @@
     cursor: pointer;
     text-decoration: none;
   }
-  nav a:hover, nav button:hover { color: var(--ink); border-bottom-color: var(--sepia); }
-  nav button:disabled { color: var(--faded); cursor: progress; }
+  nav a:hover, nav button:hover, .saves button:hover, .find button:hover { color: var(--ink); border-bottom-color: var(--sepia); }
+  .saves button:disabled { color: var(--faded); cursor: progress; }
   footer {
     margin-top: 40px;
     text-align: center;
@@ -101,16 +127,23 @@
 
   <figure>
     <div class="plate" id="bird"></div>
+    <div class="saves">
+      <button type="button" id="save-svg">Save as SVG</button>
+      <button type="button" id="save-png">Save as PNG</button>
+      <button type="button" id="save-gif">Save as GIF</button>
+    </div>
     <figcaption id="caption"></figcaption>
   </figure>
 
   <nav>
     <a id="another" href="">Draw another</a>
     <a id="link" href="">Link to this bird</a>
-    <button type="button" id="save-svg">Save as SVG</button>
-    <button type="button" id="save-png">Save as PNG</button>
-    <button type="button" id="save-gif">Save as GIF</button>
+    <button type="button" id="find-open" aria-expanded="false" aria-controls="find">Find a bird</button>
   </nav>
+  <form class="find" id="find" hidden>
+    <input id="find-name" type="text" placeholder="a name, e.g. Avis magnifica" aria-label="Bird name" autocomplete="off">
+    <button type="submit">Draw it</button>
+  </form>
 
   <footer>
     Procedurally generated in your browser by <a href="https://github.com/niklasprobul/birddraw">birddraw</a>,
@@ -137,6 +170,21 @@
     '<span class="name">' + esc(seed) + '</span><br>drawn ' + esc(when);
   document.getElementById('another').href = location.pathname;
   document.getElementById('link').href = location.pathname + '?seed=' + encodeURIComponent(seed);
+
+  // find a bird: any name is a seed, so the same name always draws the same bird
+  let find = document.getElementById('find');
+  let find_open = document.getElementById('find-open');
+  let find_name = document.getElementById('find-name');
+  find_open.onclick = () => {
+    find.hidden = !find.hidden;
+    find_open.setAttribute('aria-expanded', String(!find.hidden));
+    if (!find.hidden) find_name.focus();
+  };
+  find.onsubmit = e => {
+    e.preventDefault();
+    let name = find_name.value.trim();
+    if (name) location.href = location.pathname + '?seed=' + encodeURIComponent(name);
+  };
 
   let basename = seed.replace(/\s+/g, '_');
 
